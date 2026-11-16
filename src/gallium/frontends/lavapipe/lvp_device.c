@@ -62,7 +62,9 @@
     defined(VK_USE_PLATFORM_WIN32_KHR) || \
     defined(VK_USE_PLATFORM_XCB_KHR) || \
     defined(VK_USE_PLATFORM_XLIB_KHR) || \
-    defined(VK_USE_PLATFORM_METAL_EXT)
+    defined(VK_USE_PLATFORM_METAL_EXT) || \
+    /* Non-Windows builds already compile and advertise EXT_headless_surface. */ \
+    !defined(VK_USE_PLATFORM_WIN32_KHR)
 #define LVP_USE_WSI_PLATFORM
 #endif
 

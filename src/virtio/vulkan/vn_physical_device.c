@@ -1039,6 +1039,27 @@ vn_physical_device_init_external_memory(
     * For vtest, the protocol does not support external memory import. So we
     * only mask out the importable bit so that wsi over vtest can be supported.
     */
+#ifndef VK_USE_PLATFORM_ANDROID_KHR
+   /* Lm's host uses virglrenderer 1.3 opaque-fd resources.
+    * Preserve optimal image tiling without requiring host DMA-BUF export.
+    * Hardware with DMA-BUF and Android retain the upstream path.
+    */
+   VkPhysicalDeviceProperties props;
+   vn_call_vkGetPhysicalDeviceProperties(
+      physical_dev->instance->ring.ring,
+      vn_physical_device_to_handle(physical_dev), &props);
+   if ((props.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU ||
+        !physical_dev->renderer_extensions.EXT_external_memory_dma_buf) &&
+       physical_dev->renderer_extensions.KHR_external_memory_fd) {
+      physical_dev->external_memory.renderer_handle_type =
+         VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+      physical_dev->external_memory.supported_handle_types =
+         VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+      if (VN_DEBUG(INIT))
+         vn_log(physical_dev->instance, props.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU ? "CPU renderer uses opaque-fd external memory" : "hardware renderer uses opaque-fd external memory");
+      return;
+   }
+#endif
    if (physical_dev->renderer_extensions.EXT_external_memory_dma_buf) {
       physical_dev->external_memory.renderer_handle_type =
          VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
@@ -1132,7 +1153,9 @@ vn_physical_device_get_native_extensions(
    if (physical_dev->external_memory.renderer_handle_type) {
 #if !DETECT_OS_WINDOWS
       exts->KHR_external_memory_fd = true;
-      exts->EXT_external_memory_dma_buf = true;
+      exts->EXT_external_memory_dma_buf =
+         physical_dev->external_memory.supported_handle_types &
+         VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
 #endif /* !DETECT_OS_WINDOWS */
    }
 #endif /* VK_USE_PLATFORM_ANDROID_KHR */
